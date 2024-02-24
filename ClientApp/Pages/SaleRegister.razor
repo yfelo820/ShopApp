@@ -1,0 +1,160 @@
+﻿@page "/registerSale"
+
+@using ClientApp.Models
+@using System.Text.Json
+@using ClientApp.Services
+@using global::Shared.Models
+
+@inject NavigationManager NavigationManager;
+@inject HttpClient http
+@inject IHttpClientFactory clientFactory
+@inject IJSRuntime JSRuntime
+
+<h3>Sale Register</h3>
+
+@if(clients == null ||
+    products == null)
+{
+    <p><em> Loading... </em></p>
+}
+else
+{
+    <h4>Select the Client</h4>
+
+    <select @bind="clientSelectedValue">
+        @foreach (var item in clients)
+        {
+            <option value="@item.ClientId">@item.Name</option>
+        }
+    </select>
+
+    <h4>Select the Product</h4>
+
+    <select @bind="productSelectedValue">
+        @foreach (var item in products)
+        {
+            <option value="@item.ProductId">@item.Name</option>
+        }
+    </select>
+
+    <EditForm Model="@amount">
+
+        <table class="table">
+            <tr>
+                <td>Amount</td>                
+            </tr>
+            <tr>
+                <td><input class="form-control col-sm-4" type="text" @bind="amount" style="width:150px;height:1.5em;" /> </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align:left">
+                    <input class="btn btn-primary" style="background-color:#0b5ed7;" type="submit" value="Sale" @onclick="Sale"  />
+                </td>
+            </tr>
+        </table>
+
+    </EditForm>
+}
+
+
+
+
+@code {
+    int clientSelectedValue;
+    int productSelectedValue;
+    int amount;
+    List<ClientApp.Models.Client> clients { get; set; }
+    List<Product> products { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {       
+        await GetClients();
+        await GetProducts();
+    }
+
+    private async Task GetClients()
+    {
+        try
+        {
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if (string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }            
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+            http = new HttpClient();
+
+            var clientServices = new ClientRestServices(http);
+            var clientsList = await clientServices.GetAllClient(token);
+
+            clients = clientsList.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener datos: {ex.Message}");
+        }
+    }
+
+    private async Task GetProducts()
+    {
+        try
+        {
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if (string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+            http = new HttpClient();
+
+            var productServices = new ProductRestServices(http);
+            var productsList = await productServices.GetAllProduct(token);
+
+            products = productsList.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener datos: {ex.Message}");
+        }
+    }
+
+    protected async Task Sale()
+    {
+        var idCliente = clientSelectedValue;
+        var idProducto = productSelectedValue;
+        var amount = this.amount;
+
+        if(amount > 0 && idCliente > 0 && idProducto > 0)
+        {
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if (string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            http = new HttpClient();
+
+            var shopServices = new ShopRestServices(http);
+            var productsList = await shopServices.RegisterSale(token, idCliente, idProducto, amount);  
+            
+            NavigationManager.NavigateTo("/counter");
+        }
+    }
+
+}

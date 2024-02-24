@@ -1,0 +1,90 @@
+﻿@page "/client"
+@using ClientApp.Models
+@using System.Text.Json
+@using ClientApp.Services
+@using global::Shared.Models
+@inject IHttpClientFactory clientFactory
+@inject HttpClient http
+@inject IJSRuntime JSRuntime
+
+<PageTitle> Clients List </PageTitle>
+
+<p> <em> <a href="/clientDetails"> <i> To Add a new Client Click here! </i></a> </em></p>
+
+@if (clients == null)
+{
+    <p><em> Loading... </em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th> Name </th>
+                <th> Email</th>
+                <th> PhoneNumber </th>
+                <th> </th>
+                <th> </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var client in clients)
+            {
+                <tr>
+                    <td> @client.Name </td>
+                    <td> @client.Email </td>
+                    <td> @client.PhoneNumber </td>
+                    <td> <a href="/clientDetails/@client.ClientId"> <i> Edit </i> </a> </td>
+                    <td> <a href="/clientDelete/@client.ClientId"> <i> Delete </i> </a> </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+
+@code {
+
+
+    public List<ClientApp.Models.Client> clients { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await GetClients();
+        }
+        catch (Exception ex)
+        {
+            //Message = ex.Message;
+        }
+    }
+
+    private async Task GetClients()
+    {
+        try
+        {            
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if(string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+            var clientServices = new ClientRestServices(http);
+            var clientsList = await clientServices.GetAllClient(token);
+
+            clients = clientsList.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener datos: {ex.Message}");
+        }
+    }
+
+}

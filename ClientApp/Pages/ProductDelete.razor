@@ -1,0 +1,115 @@
+﻿@page "/productDelete/{id:int}"
+
+@using ClientApp.Models
+@using System.Text.Json
+@using ClientApp.Services
+@using global::Shared.Models
+
+@inject NavigationManager NavigationManager;
+@inject HttpClient http
+@inject IHttpClientFactory clientFactory
+@inject IJSRuntime JSRuntime
+
+<PageTitle> Delete Product </PageTitle>
+
+<h3>Product to be Deleted</h3>
+
+<EditForm Model="@product">
+    <table class="table">
+        <tr>            
+            @if (product == null)
+            {
+                <p><em> Loading... </em></p>
+            }
+            else
+            {
+                <td> You are about to delete product:
+                    <input class="form-control col-sm-4" type="text" @bind="product.Description" />
+                </td>
+            }
+        </tr>
+        <tr>
+            <td colspan="2" style="text-align:center">
+                <input type="submit" class="btn btn-primary" style="background-color:#0b5ed7;" value="Delete" @onclick="DeleteProduct" />
+                <input type="button" class="btn btn-secondary" style="background-color:gray;" value="Cancel" @onclick="Cancel" />
+            </td>
+        </tr>
+    </table>
+</EditForm>
+
+@code {
+
+    [Parameter]
+    public int id { get; set; }
+
+    private Product product = new Product();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (id != 0)
+        {
+            await GetProduct();
+        }
+    }
+
+    private async Task GetProduct()
+    {
+        try
+        {
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if (string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            var productServices = new ProductRestServices(http);
+            var product = await productServices.GetProductById(token, id);
+
+            this.product = product;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener datos: {ex.Message}");
+        }
+    }
+
+    protected void Cancel()
+    {
+        NavigationManager.NavigateTo("/counter");
+    }
+
+    protected async Task DeleteProduct()
+    {
+        try
+        {
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if (string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+            http = new HttpClient();
+
+            var productServices = new ProductRestServices(http);
+            var rowsDeleted = await productServices.DeleteProduct(token, id);
+
+            NavigationManager.NavigateTo("/counter");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener datos: {ex.Message}");
+        }
+    }
+
+}

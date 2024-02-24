@@ -1,0 +1,90 @@
+﻿@page "/counter"
+@using ClientApp.Models
+@using System.Text.Json
+@using ClientApp.Services
+@using global::Shared.Models
+@inject IHttpClientFactory clientFactory
+@inject HttpClient http
+@inject IJSRuntime JSRuntime
+
+<PageTitle> Products Stock </PageTitle>
+
+<p> <em> <a href ="/productDetails"> <i> To Create a new Product Click here! </i></a> </em></p>
+
+@if (products == null)
+{
+    <p><em> Loading... </em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th> Name </th>
+                <th> Description</th>
+                <th> Price </th>
+                <th> Stock </th>
+                <th> </th>
+                <th> </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in products)
+            {
+                <tr>
+                    <td> @product.Name </td>
+                    <td> @product.Description </td>
+                    <td> @product.Price </td>
+                    <td> @product.Stock </td>
+                    <td> <a href="/productDetails/@product.ProductId"> <i> Edit </i> </a> </td>
+                    <td> <a href="/productDelete/@product.ProductId"> <i> Delete </i> </a> </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+
+    public List<Product> products { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await GetProducts();
+        }
+        catch (Exception ex)
+        {
+            //Message = ex.Message;
+        }
+    }
+
+    private async Task GetProducts()
+    {
+        try
+        {
+            var jwtLocalStorage = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            if (string.IsNullOrEmpty(jwtLocalStorage))
+            {
+                var jwtResolver = new JWTResolverServices(clientFactory);
+                var tokenString = await jwtResolver.GetToken();
+
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "JWTUSER", tokenString);
+            }
+
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "JWTUSER");
+
+            var productServices = new ProductRestServices(http);
+            var productsList = await productServices.GetAllProduct(token);
+
+            products = productsList.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener datos: {ex.Message}");
+        }
+    }
+}
+
